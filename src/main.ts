@@ -5,11 +5,12 @@ import {
   getPinoLogLevel,
   getPinoTransport,
 } from '@waha/utils/logging';
-import { json, urlencoded } from 'express';
+import { json, urlencoded, Request, Response, NextFunction } from 'express';
 import { Logger as NestJSPinoLogger } from 'nestjs-pino';
 import { LoggerErrorInterceptor } from 'nestjs-pino';
 import { Logger } from 'pino';
 import pino from 'pino';
+import { Injectable, NestMiddleware } from '@nestjs/common';
 
 import { WhatsappConfigService } from './config.service';
 import { AppModuleCore } from './core/app.module.core';
@@ -17,6 +18,33 @@ import { SwaggerConfiguratorCore } from './core/SwaggerConfiguratorCore';
 import { AllExceptionsFilter } from './nestjs/AllExceptionsFilter';
 import { WAHA_WEBHOOKS } from './structures/webhooks.dto';
 import { getWAHAVersion, VERSION, WAHAVersion } from './version';
+
+@Injectable()
+class AuthMiddleware implements NestMiddleware {
+  use(req: Request, res: Response, next: NextFunction) {
+    // First, check for the token in the Authorization header
+    let token = req.header('Authorization')?.split(' ')[1]; // Extract token from Authorization header (Bearer token)
+
+    // If no token in Authorization header, check for token in query parameters
+    if (!token) {
+      token = req.query.token as string; // Retrieve token from query parameter
+    }
+
+    if (!token) {
+      return res.status(401).json({ message: 'Token missing' });
+    }
+
+    const expectedToken = process.env.API_TOKEN; // Retrieve expected token from environment variables
+
+    // Compare the provided token with the one stored in environment variables
+    if (token !== expectedToken) {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
+
+    // If the token matches, allow the request to proceed
+    next();
+  }
+}
 
 const logger: Logger = pino({
   level: getPinoLogLevel(),
@@ -69,6 +97,7 @@ async function bootstrap() {
     bufferLogs: true,
   });
   app.useLogger(app.get(NestJSPinoLogger));
+  app.use(new AuthMiddleware().use);
 
   // Print original stack, not pino one
   // https://github.com/iamolegga/nestjs-pino?tab=readme-ov-file#expose-stack-trace-and-error-class-in-err-property
