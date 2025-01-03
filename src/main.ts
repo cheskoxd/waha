@@ -10,7 +10,7 @@ import { Logger as NestJSPinoLogger } from 'nestjs-pino';
 import { LoggerErrorInterceptor } from 'nestjs-pino';
 import { Logger } from 'pino';
 import pino from 'pino';
-import { Injectable, NestMiddleware, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NestMiddleware,Inject, UnauthorizedException } from '@nestjs/common';
 
 import { WhatsappConfigService } from './config.service';
 import { AppModuleCore } from './core/app.module.core';
@@ -21,7 +21,7 @@ import { getWAHAVersion, VERSION, WAHAVersion } from './version';
 
 @Injectable()
 export class AuthMiddleware implements NestMiddleware {
-  constructor(private readonly configService: WhatsappConfigService) {}
+  constructor(@Inject(WhatsappConfigService) private readonly configService: WhatsappConfigService) {}
 
   use(req: Request, res: Response, next: NextFunction) {
     const apiKey = req.header('X-Api-Key');
