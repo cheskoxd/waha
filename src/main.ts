@@ -22,7 +22,12 @@ import { getWAHAVersion, VERSION, WAHAVersion } from './version';
 @Injectable()
 class AuthMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
-    // First, check for the token in the Authorization header
+    // Bypass middleware for static files under /dashboard/_nuxt/ and .css files
+    if (req.url.startsWith('/dashboard/_nuxt/') || req.url.endsWith('.css')) {
+      return next();
+    }
+
+    // Your token validation logic...
     let token = req.header('Authorization')?.split(' ')[1]; // Extract token from Authorization header (Bearer token)
 
     // If no token in Authorization header, check for token in query parameters
@@ -45,6 +50,7 @@ class AuthMiddleware implements NestMiddleware {
     next();
   }
 }
+
 
 const logger: Logger = pino({
   level: getPinoLogLevel(),
