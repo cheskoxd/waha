@@ -10,7 +10,7 @@ import { Logger as NestJSPinoLogger } from 'nestjs-pino';
 import { LoggerErrorInterceptor } from 'nestjs-pino';
 import { Logger } from 'pino';
 import pino from 'pino';
-import { Injectable, NestMiddleware } from '@nestjs/common';
+import { Injectable, NestMiddleware, UnauthorizedException } from '@nestjs/common';
 
 import { WhatsappConfigService } from './config.service';
 import { AppModuleCore } from './core/app.module.core';
@@ -21,32 +21,16 @@ import { getWAHAVersion, VERSION, WAHAVersion } from './version';
 
 @Injectable()
 class AuthMiddleware implements NestMiddleware {
+  constructor(private configService: WhatsappConfigService) {}
+
   use(req: Request, res: Response, next: NextFunction) {
-    // Bypass middleware for static files under /dashboard/_nuxt/ and .css files
-    if (req.url.startsWith('/dashboard/_nuxt/') || req.url.endsWith('.css')) {
-      return next();
+    const apiKey = req.header('X-Api-Key');
+    const validApiKey = this.configService.getApiKey();
+
+    if (!apiKey || apiKey !== validApiKey) {
+      throw new UnauthorizedException('Invalid API key');
     }
 
-    // Your token validation logic...
-    let token = req.header('Authorization')?.split(' ')[1]; // Extract token from Authorization header (Bearer token)
-
-    // If no token in Authorization header, check for token in query parameters
-    if (!token) {
-      token = req.query.token as string; // Retrieve token from query parameter
-    }
-
-    if (!token) {
-      return res.status(401).json({ message: 'Token missing' });
-    }
-
-    const expectedToken = process.env.API_TOKEN; // Retrieve expected token from environment variables
-
-    // Compare the provided token with the one stored in environment variables
-    if (token !== expectedToken) {
-      return res.status(401).json({ message: 'Invalid token' });
-    }
-
-    // If the token matches, allow the request to proceed
     next();
   }
 }
@@ -103,7 +87,7 @@ async function bootstrap() {
     bufferLogs: true,
   });
   app.useLogger(app.get(NestJSPinoLogger));
-  app.use(new AuthMiddleware().use);
+  
 
   // Print original stack, not pino one
   // https://github.com/iamolegga/nestjs-pino?tab=readme-ov-file#expose-stack-trace-and-error-class-in-err-property
@@ -126,6 +110,7 @@ async function bootstrap() {
 
   AppModule.appReady(app, logger);
   app.enableShutdownHooks();
+  app.use(new AuthMiddleware(app.get(WhatsappConfigService)).use);
   const config = app.get(WhatsappConfigService);
   await app.listen(config.port);
   logger.info(`WhatsApp HTTP API is running on: ${await app.getUrl()}`);
