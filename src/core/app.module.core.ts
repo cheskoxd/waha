@@ -1,4 +1,4 @@
-import { INestApplication, Module } from '@nestjs/common';
+import { MiddlewareConsumer, NestModule, INestApplication, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { PassportModule } from '@nestjs/passport';
@@ -45,6 +45,7 @@ import { EngineConfigService } from './config/EngineConfigService';
 import { SwaggerConfigServiceCore } from './config/SwaggerConfigServiceCore';
 import { WAHAHealthCheckServiceCore } from './health/WAHAHealthCheckServiceCore';
 import { SessionManagerCore } from './manager.core';
+import { AuthMiddleware } from '@waha/main';
 
 export const IMPORTS_CORE = [
   LoggerModule.forRoot({
@@ -159,7 +160,7 @@ const PROVIDERS = [
   controllers: CONTROLLERS,
   providers: PROVIDERS,
 })
-export class AppModuleCore {
+export class AppModuleCore implements NestModule {
   public startTimestamp: number;
 
   constructor(protected config: WhatsappConfigService) {
@@ -172,5 +173,11 @@ export class AppModuleCore {
 
   static appReady(app: INestApplication, logger: Logger) {
     return;
+  }
+
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+    .apply(AuthMiddleware)
+    .forRoutes('/api/*');   // Apply globally to all routes or specify specific routes
   }
 }

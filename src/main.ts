@@ -20,8 +20,8 @@ import { WAHA_WEBHOOKS } from './structures/webhooks.dto';
 import { getWAHAVersion, VERSION, WAHAVersion } from './version';
 
 @Injectable()
-class AuthMiddleware implements NestMiddleware {
-  constructor(private configService: WhatsappConfigService) {}
+export class AuthMiddleware implements NestMiddleware {
+  constructor(private readonly configService: WhatsappConfigService) {}
 
   use(req: Request, res: Response, next: NextFunction) {
     const apiKey = req.header('X-Api-Key');
@@ -87,7 +87,6 @@ async function bootstrap() {
     bufferLogs: true,
   });
   app.useLogger(app.get(NestJSPinoLogger));
-  
 
   // Print original stack, not pino one
   // https://github.com/iamolegga/nestjs-pino?tab=readme-ov-file#expose-stack-trace-and-error-class-in-err-property
